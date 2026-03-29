@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<!--
+  =========================================================
+  BioBattle – Interaktives Biochemie-Quiz
+  =========================================================
+  Entwickelt von T. Riyahi (Med. Fakultät, Uni Köln)
+  mit maßgeblicher Unterstützung von:
+  🤖 Claude (Anthropic) – Konzeption, Fragenentwicklung,
+                          Qualitätssicherung, Code & Design
+  🤖 ChatGPT (OpenAI)  – Fragenentwicklung und
+                          inhaltliche Beiträge
+  Ohne diese KI-Unterstützung wäre BioBattle in dieser
+  Form nicht möglich gewesen.
+
+  Zielgruppe: Studierende der Humanmedizin, Zahnmedizin
+              und Neurowissenschaften, Uni Köln
+  Lizenz:     CC BY 4.0
+  =========================================================
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BioBattle – Biochemie Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --navy:        #0d1b2a;
+      --navy-mid:    #152336;
+      --navy-light:  #1e3248;
+      --emerald:     #2ec4a0;
+      --emerald-dim: #1a8f75;
+      --emerald-glow:rgba(46,196,160,0.12);
+      --cream:       #f0ece4;
+      --cream-dim:   #d4cfc6;
+      --text-main:   #e8e3db;
+      --text-muted:  #8a9bb0;
+      --correct-bg:  rgba(46,196,112,0.15);
+      --correct-brd: #2ec470;
+      --wrong-bg:    rgba(232,82,82,0.15);
+      --wrong-brd:   #e85252;
+      --amber:       #f0a500;
+      --amber-glow:  rgba(240,165,0,0.15);
+      --radius:      18px;
+      --shadow:      0 24px 64px rgba(0,0,0,0.45);
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family:'DM Sans',system-ui,sans-serif;
+      background:var(--navy);
+      color:var(--text-main);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    /* Background orbs */
+    .bg { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    .orb { position:absolute; border-radius:50%; filter:blur(90px); }
+    .orb1 { width:600px;height:600px;background:var(--emerald);opacity:0.13;top:-200px;right:-100px;animation:drift 18s ease-in-out infinite alternate; }
+    .orb2 { width:400px;height:400px;background:#4a7fcb;opacity:0.09;bottom:-100px;left:-80px;animation:drift 22s ease-in-out infinite alternate-reverse; }
+    @keyframes drift { from{transform:translate(0,0)} to{transform:translate(30px,20px)} }
+
+    /* Layout */
+    .app { position:relative;z-index:1;max-width:760px;margin:0 auto;padding:40px 16px 60px;display:flex;flex-direction:column;gap:28px; }
+
+    /* Header */
+    .app-header { text-align:center; }
+    .eyebrow { display:inline-block;font-size:0.68rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--emerald);padding:4px 14px;border:1px solid var(--emerald-dim);border-radius:100px;margin-bottom:12px; }
+    .app-title { font-family:'Lora',Georgia,serif;font-size:clamp(2.2rem,6vw,3.6rem);font-weight:600;color:var(--cream);letter-spacing:-0.02em;line-height:1.1;margin-bottom:8px; }
+    .app-sub { font-size:0.85rem;color:var(--text-muted);font-weight:300; }
+
+    /* Card */
+    .card { background:var(--navy-mid);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:36px 40px;box-shadow:var(--shadow); }
+
+    /* Buttons */
+    .btn-primary, .btn-secondary {
+      font-family:inherit;font-size:0.92rem;font-weight:500;border:none;border-radius:10px;padding:12px 24px;cursor:pointer;transition:all 0.2s ease;display:inline-block;
+    }
+    .btn-primary { background:var(--emerald);color:var(--navy);box-shadow:0 4px 16px rgba(46,196,160,0.25); }
+    .btn-primary:hover:not([disabled]) { background:#3ddbb8;transform:translateY(-2px); }
+    .btn-primary[disabled] { opacity:0.45;cursor:default; }
+    .btn-secondary { background:var(--navy-light);color:var(--text-muted);border:1px solid rgba(255,255,255,0.1); }
+    .btn-secondary:hover { color:var(--text-main);transform:translateY(-1px); }
+    .btn-row { display:flex;gap:12px;flex-wrap:wrap; }
+
+    /* Welcome */
+    .welcome-title { font-family:'Lora',Georgia,serif;font-size:1.45rem;font-weight:600;color:var(--cream);margin-bottom:8px; }
+    .welcome-sub { color:var(--text-muted);font-size:0.9rem;margin-bottom:26px;line-height:1.6;font-weight:300; }
+
+    /* Mode grid */
+    .mode-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px; }
+    .mode-card {
+      background:linear-gradient(135deg,var(--navy-light),#243a52);
+      border:1px solid rgba(46,196,160,0.2);border-radius:18px;padding:26px 20px;
+      cursor:pointer;text-align:left;transition:all 0.2s ease;font-family:inherit;
+    }
+    .mode-card.duel { background:linear-gradient(135deg,#1e2d1e,#1a3028);border-color:rgba(240,165,0,0.2); }
+    .mode-card:hover { transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,0.3); }
+    .mode-icon { font-size:2rem;margin-bottom:10px; }
+    .mode-name { color:var(--cream);font-weight:600;font-size:1rem;margin-bottom:6px; }
+    .mode-desc { color:var(--text-muted);font-size:0.82rem;line-height:1.5; }
+    .join-btn {
+      width:100%;background:var(--navy-light);border:1px solid rgba(255,255,255,0.08);
+      border-radius:12px;padding:14px;cursor:pointer;color:var(--text-muted);
+      font-size:0.88rem;font-family:inherit;transition:all 0.2s ease;
+    }
+    .join-btn:hover { color:var(--text-main);border-color:rgba(255,255,255,0.18); }
+    .warn { color:#e87070;font-size:0.78rem;margin-top:12px;text-align:center; }
+
+    /* Topic grid */
+    .topic-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:26px; }
+    .topic-btn {
+      background:var(--navy-light);border:1px solid rgba(255,255,255,0.08);border-left:3px solid transparent;
+      border-radius:10px;padding:12px 14px;font-family:inherit;font-size:0.86rem;
+      color:var(--text-main);cursor:pointer;text-align:left;transition:all 0.18s ease;
+    }
+    .topic-btn:hover { border-color:rgba(46,196,160,0.3);transform:translateY(-1px); }
+    .topic-btn.sel { background:var(--emerald-glow);border-color:var(--emerald-dim);border-left-color:var(--emerald);color:var(--cream); }
+    .topic-btn.locked { opacity:0.4;cursor:not-allowed;border-color:rgba(255,255,255,0.04);background:rgba(255,255,255,0.01); }
+    .topic-btn.locked:hover { transform:none;border-color:rgba(255,255,255,0.04); }
+    .unlock-section { margin-top:10px;padding:16px 20px;background:var(--navy-light);border:1px solid rgba(255,255,255,0.07);border-radius:14px; }
+    .unlock-title { font-size:0.78rem;font-weight:600;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px; }
+    .unlock-row { display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:0.78rem;color:var(--text-muted); }
+    .unlock-topic { width:190px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .unlock-bar-wrap { flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden; }
+    .unlock-bar-fill { height:100%;background:var(--emerald);border-radius:3px;transition:width 0.5s ease; }
+    .unlock-count { width:44px;text-align:right;flex-shrink:0;font-size:0.75rem; }
+    .unlock-done { color:var(--emerald);font-size:0.82rem; }
+    .admin-panel { background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(255,200,0,0.25);border-radius:14px;padding:18px 20px;margin-top:12px; }
+    .admin-title { font-size:0.8rem;font-weight:700;color:#ffd700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px; }
+    .admin-row { display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap; }
+    .admin-topic-name { flex:1;font-size:0.82rem;color:var(--cream);min-width:160px; }
+    .admin-count-wrap { display:flex;align-items:center;gap:6px; }
+    .admin-count-btn { width:28px;height:28px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:var(--cream);cursor:pointer;font-size:15px;line-height:1; }
+    .admin-count-btn:hover { background:rgba(255,255,255,0.15); }
+    .admin-count-val { min-width:30px;text-align:center;font-size:0.82rem;color:var(--cream);font-weight:600; }
+    .admin-toggle { font-size:0.75rem;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,200,0,0.35);background:rgba(255,200,0,0.1);color:#ffd700;cursor:pointer;white-space:nowrap; }
+    .admin-toggle:hover { background:rgba(255,200,0,0.2); }
+    .admin-toggle.locked { border-color:rgba(232,82,82,0.35);background:rgba(232,82,82,0.1);color:#e87070; }
+    .admin-toggle.locked:hover { background:rgba(232,82,82,0.2); }
+    .dash-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px; }
+    .dash-card { background:var(--navy-light);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center; }
+    .dash-number { font-family:'Lora',Georgia,serif;font-size:2rem;font-weight:600;color:var(--emerald);line-height:1; }
+    .dash-label { font-size:0.72rem;color:var(--text-muted);margin-top:6px;line-height:1.3; }
+    .dash-table { width:100%;border-collapse:collapse;font-size:0.82rem; }
+    .dash-table th { text-align:left;color:var(--text-muted);font-weight:600;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.1); }
+    .dash-table td { padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05);color:var(--cream); }
+    .dash-table tr:hover td { background:rgba(255,255,255,0.03); }
+    .dash-bar { display:inline-block;height:14px;background:var(--emerald);border-radius:3px;min-width:2px;vertical-align:middle; }
+    .dash-loading { text-align:center;color:var(--text-muted);padding:40px 0;font-size:0.9rem; }
+
+    /* Input */
+    .text-input, .code-input {
+      width:100%;background:var(--navy-light);border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px;padding:13px 16px;color:var(--cream);font-size:1rem;
+      font-family:inherit;margin-bottom:16px;outline:none;transition:border-color 0.2s;
+    }
+    .text-input:focus, .code-input:focus { border-color:var(--emerald-dim); }
+    .code-input { font-size:1.6rem;font-family:monospace;letter-spacing:0.3em;text-align:center;text-transform:uppercase; }
+    input::placeholder { color:rgba(138,155,176,0.5); }
+
+    /* Progress bar */
+    .pb-wrap { width:100%;height:3px;background:var(--navy-light);border-radius:100px;margin-bottom:22px;overflow:hidden; }
+    .pb-fill { height:100%;background:linear-gradient(90deg,var(--emerald-dim),var(--emerald));border-radius:100px;transition:width 0.5s ease; }
+
+    /* Quiz topbar */
+    .quiz-topbar { display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07); }
+    .topbar-item { display:flex;flex-direction:column;gap:2px; }
+    .topbar-label { font-size:0.62rem;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted); }
+    .topbar-value { font-size:0.9rem;font-weight:500;color:var(--cream); }
+    .topbar-value.emerald { color:var(--emerald); }
+
+    /* Question */
+    .question-text { font-family:'Lora',Georgia,serif;font-size:1.18rem;color:var(--cream);line-height:1.65;margin-bottom:18px; }
+
+    /* Answers */
+    .answers { display:flex;flex-direction:column;gap:9px; }
+    .answer-btn {
+      background:var(--navy-light);border:1px solid rgba(255,255,255,0.08);border-radius:10px;
+      padding:13px 16px;font-family:inherit;font-size:0.9rem;color:var(--text-main);
+      cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;transition:all 0.18s ease;
+    }
+    .answer-btn:hover:not([disabled]) { border-color:rgba(46,196,160,0.4);background:rgba(46,196,160,0.06);transform:translateX(3px); }
+    .answer-btn.correct { background:var(--correct-bg);border-color:var(--correct-brd); }
+    .answer-btn.wrong { background:var(--wrong-bg);border-color:var(--wrong-brd);opacity:0.85; }
+    .answer-btn[disabled] { cursor:default; }
+    .letter {
+      display:inline-flex;align-items:center;justify-content:center;
+      width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.07);
+      font-size:0.74rem;font-weight:600;flex-shrink:0;
+    }
+    .answer-btn.correct .letter { background:var(--correct-brd);color:var(--navy); }
+    .answer-btn.wrong .letter { background:var(--wrong-brd);color:#fff; }
+
+    /* Feedback */
+    .feedback-box { margin-top:18px;padding:18px 20px;border-radius:16px;background:var(--emerald-glow);border:1px solid rgba(46,196,160,0.2); }
+    .feedback-box.wrong-fb { background:rgba(232,82,82,0.07);border-color:rgba(232,82,82,0.2); }
+    .feedback-title { font-family:'Lora',Georgia,serif;font-size:1rem;font-weight:600;color:var(--emerald);margin-bottom:7px; }
+    .feedback-box.wrong-fb .feedback-title { color:#e87070; }
+    .feedback-text { font-size:0.88rem;color:var(--text-muted);line-height:1.65;margin-bottom:16px; }
+
+    /* Result */
+    .result-score { font-family:'Lora',Georgia,serif;font-size:4.5rem;font-weight:600;color:var(--emerald);line-height:1; }
+    .result-total { font-size:2rem;color:var(--text-muted); }
+    .result-pct { font-size:0.88rem;color:var(--text-muted);margin:8px 0 14px; }
+    .result-msg { color:var(--cream-dim);line-height:1.65;margin-bottom:28px;font-weight:300;max-width:440px;margin-left:auto;margin-right:auto; }
+
+    /* Multiplayer: live bar */
+    .live-bar {
+      display:flex;align-items:center;background:var(--navy-light);border-radius:12px;
+      padding:12px 16px;margin-bottom:18px;border:1px solid rgba(255,255,255,0.07);gap:12px;
+    }
+    .live-player { flex:1;display:flex;justify-content:space-between;align-items:center; }
+    .live-player.right { flex-direction:row-reverse; }
+    .live-name { font-size:0.82rem;font-weight:600; }
+    .live-name.emerald { color:var(--emerald); }
+    .live-name.amber { color:var(--amber); }
+    .live-score { font-size:1.3rem;font-weight:700;color:var(--cream);font-family:'Lora',Georgia,serif; }
+    .live-vs { font-size:0.7rem;font-weight:700;color:var(--text-muted);letter-spacing:0.08em; }
+
+    /* Lobby */
+    .room-code-box { background:var(--navy-light);border-radius:16px;padding:22px;margin:20px auto;display:inline-block;min-width:220px; }
+    .room-code-label { font-size:0.65rem;color:var(--text-muted);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px; }
+    .room-code { font-size:3rem;font-family:monospace;font-weight:700;color:var(--emerald);letter-spacing:0.25em; }
+    .player-row { display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:8px;font-size:0.9rem;color:var(--text-main); }
+    .dot { width:9px;height:9px;border-radius:50%;background:var(--correct-brd);animation:pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .badge { font-size:0.65rem;color:var(--text-muted);background:var(--navy);padding:2px 8px;border-radius:100px;border:1px solid rgba(255,255,255,0.1); }
+
+    /* Multi result */
+    .score-compare { display:flex;justify-content:center;gap:48px;margin:24px 0; }
+    .score-col { text-align:center; }
+    .score-label { font-size:0.75rem;color:var(--text-muted);margin-bottom:6px; }
+    .score-big { font-family:'Lora',Georgia,serif;font-size:2.5rem;font-weight:600; }
+    .score-big.emerald { color:var(--emerald); }
+    .score-big.amber { color:var(--amber); }
+
+    /* Footer */
+    .app-footer { text-align:center;font-size:0.75rem;color:var(--text-muted);opacity:0.4; }
+
+    @media(max-width:580px) {
+      .card { padding:22px 16px;border-radius:14px; }
+      .app { padding:22px 12px 48px; }
+      .mode-grid { grid-template-columns:1fr; }
+      .topic-grid { grid-template-columns:1fr 1fr; }
+      .question-text { font-size:1.05rem; }
+      .result-score { font-size:3.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+</div>
+
+<div class="app">
+  <header class="app-header">
+    <span class="eyebrow">Biochemie</span>
+    <h1 class="app-title">BioBattle</h1>
+    <p class="app-sub" id="subtitle">Biochemie für Studierende der Humanmedizin, Zahnmedizin und Neurowissenschaften</p>
+  </header>
+  <main class="card" id="content"></main>
+  <footer class="app-footer">
+    <p id="footer-text">BioBattle-Team &middot; Med. Fakultät, Uni Köln &middot; 335 Fragen &middot; CC BY 4.0</p>
+  </footer>
+</div>
+
+<!-- 📚 Fragenkatalog – separate Datei -->
+<script src="questions.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ╔══════════════════════════════════════════════════════════╗
+// ║  ⚙️  SUPABASE KONFIGURATION – HIER EINTRAGEN!           ║
+// ║  Ersetze beide Werte mit deinen eigenen.                ║
+// ║  Anleitung: siehe supabase_anleitung.md                 ║
+// ╚══════════════════════════════════════════════════════════╝
+const SUPABASE_URL  = "https://hlwdrvqsiynnazibrqqm.supabase.co";
+const SUPABASE_KEY  = "sb_publishable_VJXFOHKCG0Z9awuPQbq7XA_4emCXs2F";
+
+let sb = null;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  console.warn('Supabase nicht konfiguriert:', e.message);
+}
+
+// ══════════════════════════════════════════════════════════
+//  📚  FRAGENKATALOG – 335 Fragen
+// ══════════════════════════════════════════════════════════
+// Fragen werden aus questions.js geladen (muss im selben Ordner liegen)
+const QS = (typeof QUESTIONS !== "undefined" ? QUESTIONS : []).map(q => ({
+  ...q,
+  q: q.q ?? q.question,
+  o: q.o ?? q.options,
+  c: q.c ?? q.correctIndex,
+  e: q.e ?? q.explanation,
+  t: q.t ?? q.topic,
+  author: q.author ?? null
+}));
+
+
+const QUESTIONS_PER_ROUND = 10;
+
+// ══════════════════════════════════════════════════════════
+//  🛠️  UTILS
+// ══════════════════════════════════════════════════════════
+const shuffle = arr => {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+};
+// Shuffelt Antwortoptionen und passt den Index der richtigen Antwort an
+const shuffleOptions = q => {
+  const idx = [0,1,2,3];
+  const s = shuffle(idx);
+  return { ...q, o: s.map(i => q.o[i]), c: s.indexOf(q.c) };
+};
+const getTopics = () => { const s = new Set(); QS.forEach(q => q.t?.forEach(t => s.add(t))); return [...s].sort((a,b)=>a.localeCompare(b,'de')); };
+const getByTopic = t => QS.filter(q => q.t?.includes(t));
+const genCode = () => { const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join(''); };
+const genId = () => `p_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+const LETTERS = ['A','B','C','D'];
+const topics = getTopics();
+
+// ══════════════════════════════════════════════════════════
+//  🔒  TOPIC UNLOCK SYSTEM
+// ══════════════════════════════════════════════════════════
+const UNLOCK_THRESHOLD = 10;
+const ALWAYS_UNLOCKED = ['Aminosäuren und Proteine', 'Techniken', 'Klinik'];
+const TOPIC_ORDER = [
+  'Aminosäuren und Proteine','Enzyme','Kohlenhydrate','Lipide',
+  'Bioenergetik','Kompartimente','Nukleinsäuren','Hormone','Blut',
+  'Techniken','Klinik'
+];
+
+let topicProgress = {};
+let isAdmin = false;
+
+// Admin per URL-Parameter: index.html?admin=DEIN_CODE
+// Code wird serverseitig geprüft – steht NICHT im Quelltext!
+const _urlP = new URLSearchParams(window.location.search);
+const _adminInput = _urlP.get('admin') || '';
+if (_adminInput && sb) {
+  sb.rpc('verify_admin', { code: _adminInput }).then(function(res) {
+    if (res.data === true) { isAdmin = true; render(); }
+  });
+}
+
+function isTopicUnlocked(t) {
+  if (isAdmin) return true;
+  return topicProgress[t]?.unlocked ?? ALWAYS_UNLOCKED.includes(t);
+}
+
+function initTopicProgress() {
+  TOPIC_ORDER.forEach(function(t) {
+    topicProgress[t] = { count: 0, unlocked: ALWAYS_UNLOCKED.includes(t) };
+  });
+}
+
+async function loadTopicProgress() {
+  initTopicProgress();
+  if (!sb) return;
+  try {
+    var res = await sb.from('bb_progress').select('*');
+    if (res.data && res.data.length > 0) {
+      res.data.forEach(function(row) {
+        topicProgress[row.topic] = { count: row.count || 0, unlocked: row.unlocked || ALWAYS_UNLOCKED.includes(row.topic) };
+      });
+    }
+  } catch(e) { console.log('Progress laden fehlgeschlagen, nutze Defaults.'); }
+}
+
+// ══════════════════════════════════════════════════════════
+//  📊  ANONYME NUTZUNGSSTATISTIK (datenschutzkonform)
+// ══════════════════════════════════════════════════════════
+function trackEvent(eventType, topic) {
+  if (!sb) return;
+  try { sb.rpc('track_event', { p_event_type: eventType, p_topic: topic || null }); } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════
+//  ⚙️  ADMIN-FUNKTIONEN (serverseitig abgesichert)
+// ══════════════════════════════════════════════════════════
+window.adminChangeCount = async function(topic, delta) {
+  if (!isAdmin) return;
+  var p = topicProgress[topic];
+  var newCount = Math.max(0, (p.count || 0) + delta);
+  var newUnlocked = newCount >= UNLOCK_THRESHOLD ? true : p.unlocked;
+  var res = await sb.rpc('admin_update_progress', {
+    admin_code: _adminInput, topic_name: topic,
+    new_count: newCount, is_unlocked: newUnlocked
+  });
+  if (res.data) { p.count = newCount; p.unlocked = newUnlocked; render(); }
+};
+
+window.adminToggleLock = async function(topic) {
+  if (!isAdmin) return;
+  var p = topicProgress[topic];
+  var newUnlocked = !p.unlocked;
+  var res = await sb.rpc('admin_update_progress', {
+    admin_code: _adminInput, topic_name: topic,
+    new_count: p.count || 0, is_unlocked: newUnlocked
+  });
+  if (res.data) { p.unlocked = newUnlocked; render(); }
+};
+
+// ══════════════════════════════════════════════════════════
+//  📦  STATE
+// ══════════════════════════════════════════════════════════
+const S = {
+  screen: 'home', playerId: genId(), playerName: '',
+  topic: null, quizQs: [], qIdx: 0, score: 0, answered: null,
+  isHost: false, roomCode: '', room: null,
+  multiScore: 0, multiQIdx: 0, multiAnswered: null
+};
+
+// ══════════════════════════════════════════════════════════
+//  🟢  SUPABASE – DATENBANK
+// ══════════════════════════════════════════════════════════
+async function saveRoom(room) {
+  if (!sb) return;
+  await sb.from('bb_rooms').upsert({ code: room.code, data: room, updated_at: new Date().toISOString() });
+}
+
+async function loadRoom(code) {
+  if (!sb) return null;
+  const { data, error } = await sb.from('bb_rooms').select('data').eq('code', code.toUpperCase()).single();
+  if (error || !data) return null;
+  return data.data;
+}
+
+// ══════════════════════════════════════════════════════════
+//  🛡️  ROBUSTER SYNC MANAGER (Production-Level)
+// ══════════════════════════════════════════════════════════
+const Sync = {
+  channel: null,
+  pollingInterval: null,
+  pollingDelay: 2500,
+  isConnected: false,
+  resultShown: false   // idempotenz-Schutz
+};
+
+// Raum verlassen (echter Abbruch)
+function detachListener() {
+  if (Sync.channel) { sb?.removeChannel(Sync.channel); Sync.channel = null; }
+  stopPolling();
+  Sync.isConnected = false;
+}
+
+// Listener starten – läuft bis zum echten Verlassen
+function startRoomListener() {
+  detachListener();
+  if (!sb) return;
+  Sync.resultShown = false;
+
+  Sync.channel = sb.channel(`room-${S.roomCode}`)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'bb_rooms',
+      filter: `code=eq.${S.roomCode}`
+    }, payload => {
+      Sync.isConnected = true;
+      Sync.pollingDelay = 2500; // backoff zurücksetzen
+      const room = payload.new?.data;
+      if (room) handleRoomUpdateSafe(room);
+    })
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') { Sync.isConnected = true; }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        Sync.isConnected = false;
+        startPolling();
+      }
+    });
+
+  startPolling(); // immer als Fallback
+}
+
+// Idempotenter Room-Update-Handler
+function handleRoomUpdateSafe(room) {
+  if (!room) return;
+  S.room = room;
+
+  // Lobby → Quiz starten
+  if (S.screen === 'multi-lobby' && room.status === 'playing') {
+    S.multiQIdx = 0; S.multiScore = 0; S.multiAnswered = null;
+    go('multi-quiz'); return;
+  }
+
+  // Beide fertig → Ergebnis zeigen (idempotent)
+  const players = Object.values(room.players || {});
+  const bothFinished = players.length >= 2 && players.every(p => p.finished);
+  if (bothFinished && !Sync.resultShown) {
+    Sync.resultShown = true;
+    go('multi-result'); return;
+  }
+
+  if (['multi-lobby','multi-quiz','multi-waiting'].includes(S.screen)) render();
+}
+
+// Polling als Fallback (mit funktionierendem Backoff)
+function startPolling() {
+  if (Sync.pollingInterval) return;
+  async function poll() {
+    if (!S.roomCode || !sb) { Sync.pollingInterval = null; return; }
+    const room = await loadRoom(S.roomCode);
+    if (room) handleRoomUpdateSafe(room);
+    if (!Sync.isConnected) {
+      Sync.pollingDelay = Math.min(Sync.pollingDelay + 1000, 8000);
+    }
+    Sync.pollingInterval = setTimeout(poll, Sync.pollingDelay);
+  }
+  Sync.pollingInterval = setTimeout(poll, Sync.pollingDelay);
+}
+
+function stopPolling() {
+  if (Sync.pollingInterval) { clearTimeout(Sync.pollingInterval); Sync.pollingInterval = null; }
+}
+
+// Force-Resync nach Standby/Online
+async function forceRoomSync() {
+  if (!S.roomCode || !sb) return;
+  const room = await loadRoom(S.roomCode);
+  if (room) handleRoomUpdateSafe(room);
+}
+
+// Handy entsperrt → sofort resyncen
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && S.roomCode) forceRoomSync();
+});
+
+// WLAN wieder da → sofort resyncen
+window.addEventListener('online', () => {
+  if (S.roomCode) forceRoomSync();
+});
+
+// ══════════════════════════════════════════════════════════
+//  🎮  GAME LOGIC
+// ══════════════════════════════════════════════════════════
+function go(screen) { S.screen = screen; render(); }
+
+function startSolo() {
+  const pool = getByTopic(S.topic);
+  S.quizQs = shuffle(pool).slice(0,QUESTIONS_PER_ROUND).map(shuffleOptions);
+  S.qIdx = 0; S.score = 0; S.answered = null;
+  trackEvent('solo_started', S.topic);
+  go('solo-quiz');
+}
+
+function startLearn() {
+  const pool = getByTopic(S.topic);
+  S.quizQs = shuffle(pool).map(shuffleOptions); // ALLE Fragen
+  S.qIdx = 0; S.score = 0; S.answered = null;
+  trackEvent('learn_started', S.topic);
+  go('solo-quiz');
+}
+
+function handleSoloAnswer(chosen) {
+  if (S.answered !== null) return;
+  S.answered = chosen;
+  if (chosen === S.quizQs[S.qIdx].c) S.score++;
+  render();
+}
+
+function nextSolo() {
+  S.qIdx++; S.answered = null;
+  if (S.qIdx >= S.quizQs.length) go('solo-result'); else render();
+}
+
+async function createRoom() {
+  if (!S.topic || !S.playerName || !sb) return;
+  const code = genCode();
+  const questions = shuffle(getByTopic(S.topic)).slice(0,10).map(shuffleOptions);
+  const room = { code, topic: S.topic, questions, hostId: S.playerId,
+    players: { [S.playerId]: { name: S.playerName, score:0, qIdx:0, finished:false } },
+    status: 'waiting', createdAt: Date.now() };
+  await saveRoom(room);
+  S.roomCode = code; S.room = room; S.isHost = true;
+  S.multiQIdx = 0; S.multiScore = 0; S.multiAnswered = null;
+  trackEvent('duel_created', S.topic);
+  startRoomListener();
+  go('multi-lobby');
+}
+
+async function joinRoom() {
+  const inp = document.getElementById('codeInput');
+  const code = (inp?.value || '').toUpperCase().trim();
+  if (!code || !S.playerName || !sb) return;
+  const found = await loadRoom(code);
+  if (!found) { alert('Raum nicht gefunden! Bitte Code prüfen.'); return; }
+  if (Object.keys(found.players||{}).length >= 2) { alert('Dieser Raum ist bereits voll!'); return; }
+  if (found.status !== 'waiting') { alert('Das Spiel hat bereits begonnen!'); return; }
+  found.players[S.playerId] = { name: S.playerName, score:0, qIdx:0, finished:false };
+  await saveRoom(found);
+  S.roomCode = code; S.room = found; S.isHost = false;
+  S.multiQIdx = 0; S.multiScore = 0; S.multiAnswered = null;
+  trackEvent('duel_joined', found.topic);
+  startRoomListener();
+  go('multi-lobby');
+}
+
+async function startGame() {
+  const fresh = await loadRoom(S.roomCode);
+  if (!fresh) return;
+  if (Object.keys(fresh.players||{}).length < 2) { alert('Warte noch auf den 2. Spieler!'); return; }
+  fresh.status = 'playing';
+  await saveRoom(fresh);
+}
+
+// Hilfsfunktion: Nur eigenen Spieler atomar updaten (gegen Race Conditions)
+async function savePlayerData(data) {
+  if (!sb || !S.room) return;
+  S.room.players[S.playerId] = data;
+  // Falls update_player RPC existiert → atomar; sonst Fallback auf saveRoom
+  try {
+    await sb.rpc('update_player', { room_code: S.roomCode, player_id: S.playerId, player_data: data });
+  } catch(e) {
+    await saveRoom(S.room);
+  }
+}
+
+async function handleMultiAnswer(chosen) {
+  if (S.multiAnswered !== null) return;
+  S.multiAnswered = chosen;
+  const q = S.room.questions[S.multiQIdx];
+  if (chosen === q.c) S.multiScore++;
+  await savePlayerData({ ...(S.room.players[S.playerId]||{}), score: S.multiScore, qIdx: S.multiQIdx });
+  render();
+}
+
+async function nextMulti() {
+  const nextIdx = S.multiQIdx + 1;
+  if (nextIdx >= (S.room?.questions?.length || QUESTIONS_PER_ROUND)) {
+    await savePlayerData({ ...(S.room.players[S.playerId]||{}), finished:true, score: S.multiScore });
+    go('multi-waiting');
+  } else {
+    S.multiQIdx = nextIdx; S.multiAnswered = null;
+    await savePlayerData({ ...(S.room.players[S.playerId]||{}), qIdx: nextIdx });
+    render();
+  }
+}
+
+function setName(nextScreen) {
+  const inp = document.getElementById('nameInput');
+  if (!inp?.value?.trim()) return;
+  S.playerName = inp.value.trim();
+  go(nextScreen);
+}
+
+function selectTopic(t) {
+  if (!isTopicUnlocked(t)) { showLockedMsg(t); return; }
+  S.topic = t; render();
+}
+
+function showLockedMsg(t) {
+  var p = topicProgress[t] || { count: 0 };
+  var missing = Math.max(0, UNLOCK_THRESHOLD - (p.count || 0));
+  alert('🔒 ' + t + ' ist noch gesperrt.\n\nNoch ' + missing + ' Beitrag' + (missing===1?'':'e') + ' nötig!\n\nReiche eine Frage ein oder melde einen Fehler – du hilfst damit allen! 🧬');
+}
+
+function leaveRoom() { detachListener(); S.room = null; S.roomCode = ''; go('home'); }
+
+function goHome() { detachListener(); S.room = null; S.roomCode = ''; S.playerName = ''; S.topic = null; go('home'); }
+
+function showFbError() { alert('Supabase ist noch nicht konfiguriert!\n\nBitte trage zuerst deine Supabase-URL und den Anon-Key in die HTML-Datei ein.\nSiehe supabase_anleitung.md für eine Schritt-für-Schritt-Anleitung.'); }
+
+// ══════════════════════════════════════════════════════════
+//  🖼️  RENDER HELPERS
+// ══════════════════════════════════════════════════════════
+const topicGrid = sel => `<div class="topic-grid">
+  ${topics.map(t => {
+    const locked = !isTopicUnlocked(t);
+    const cls = 'topic-btn' + (sel===t?' sel':'') + (locked?' locked':'');
+    const action = locked ? `showLockedMsg('${t.replace(/'/g,"\\'")}')` : `selectTopic('${t.replace(/'/g,"\\'")}')`;
+    return `<button class="${cls}" onclick="${action}">${locked?'🔒 ':''}${t}</button>`;
+  }).join('')}
+</div>`;
+
+const progressBar = pct => `<div class="pb-wrap"><div class="pb-fill" style="width:${pct}%"></div></div>`;
+
+const answerBtn = (opt, i, answered, correct) => {
+  let cls = 'answer-btn';
+  if (answered !== null) { if (i===correct) cls+=' correct'; else if (i===answered) cls+=' wrong'; }
+  return `<button class="${cls}" ${answered!==null?'disabled':''} onclick="answerClick(${i})">
+    <span class="letter">${LETTERS[i]}</span><span>${opt}</span>
+  </button>`;
+};
+
+// ══════════════════════════════════════════════════════════
+//  🖥️  SCREEN RENDERERS
+// ══════════════════════════════════════════════════════════
+function renderHome() {
+  const fbOk = sb !== null && SUPABASE_URL !== "https://DEIN-PROJEKT.supabase.co";
+  return `
+    <h2 class="welcome-title">Willkommen zum BioBattle 🧬</h2>
+    <p class="welcome-sub">Teste dein Biochemie-Wissen allein oder fordere andere Studierende zu einem Duell heraus!</p>
+
+    <div class="mode-grid">
+      <button class="mode-card" onclick="go('solo-setup')">
+        <div class="mode-icon">🎯</div>
+        <div class="mode-name">Quiz-Modus</div>
+        <div class="mode-desc">10 Zufallsfragen zu einem Thema – schnell und kompakt</div>
+      </button>
+      <button class="mode-card" onclick="go('learn-setup')" style="background:linear-gradient(135deg,#1a2a3a,#1e3040);border-color:rgba(46,196,160,0.25)">
+        <div class="mode-icon">📚</div>
+        <div class="mode-name">Lernmodus</div>
+        <div class="mode-desc">Alle Fragen eines Themas systematisch durcharbeiten</div>
+      </button>
+      <button class="mode-card duel" onclick="${fbOk?"go('multi-name-create')":'showFbError()'}" ${!fbOk?'style="opacity:0.5"':''}>
+        <div class="mode-icon">⚔️</div>
+        <div class="mode-name">Duell erstellen</div>
+        <div class="mode-desc">Erstelle einen Raum und fordere jemanden heraus</div>
+      </button>
+      <button class="mode-card duel" onclick="${fbOk?"go('multi-name-join')":'showFbError()'}" ${!fbOk?'style="opacity:0.5"':''}>
+        <div class="mode-icon">🎯</div>
+        <div class="mode-name">Duell beitreten</div>
+        <div class="mode-desc">Code eingeben und mitspielen</div>
+      </button>
+    </div>
+
+    <div style="background:var(--navy-light);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:18px 20px;margin-top:6px;font-size:0.82rem;color:var(--text-muted);line-height:1.7">
+      <p style="margin-bottom:6px">
+        ℹ️ <strong style="color:var(--cream)">Hinweis:</strong>
+        Dieses Quiz ist ein ergänzendes Lernangebot und erhebt keinen Anspruch auf Vollständigkeit –
+        es ersetzt nicht das eigenständige Lernen mit den Kursunterlagen.
+      </p>
+      <p style="margin-bottom:6px">
+        💡 <strong style="color:var(--cream)">Mitmachen:</strong>
+        Hast du Fragen, Korrekturen oder Ideen? Meld dich gerne –
+        dieses Quiz lebt von eurer Beteiligung!
+      </p>
+      <p style="margin-bottom:6px">
+        🔒 <strong style="color:var(--cream)">Datenschutz:</strong>
+        Im Duell-Modus wird ausschließlich dein Spielername temporär gespeichert –
+        kein Personenbezug, nicht nachvollziehbar, keine dauerhafte Speicherung.
+      </p>
+      <p>
+        🧬 <strong style="color:var(--cream)">Über BioBattle:</strong>
+        BioBattle ist ein lebendiges Lernprojekt – entwickelt für Studierende der Biochemie an der Uni Köln.
+        Jede Frage trägt den Namen derer, die sie geschrieben haben.
+        Euer Feedback hat dieses Quiz mitgeformt – herzlichen Dank!
+        Und wer eigene Fragen beitragen möchte: das Formular wartet auf euch! ·
+        Lizenz: CC BY 4.0
+      </p>
+    </div>
+    ${!fbOk?'<p class="warn">⚠️ Supabase nicht konfiguriert – Multiplayer nicht verfügbar.</p>':''}
+
+    <div class="unlock-section">
+      <div class="unlock-title">🔓 Themen freischalten · ${UNLOCK_THRESHOLD} Beiträge pro Thema</div>
+      ${TOPIC_ORDER.filter(t => !ALWAYS_UNLOCKED.includes(t)).map(t => {
+        const p = topicProgress[t] || { count: 0, unlocked: false };
+        const pct = Math.min(100, Math.round(((p.count||0) / UNLOCK_THRESHOLD) * 100));
+        return p.unlocked
+          ? '<div class="unlock-row"><span class="unlock-topic">' + t + '</span><span class="unlock-done">✅ freigeschaltet</span></div>'
+          : '<div class="unlock-row"><span class="unlock-topic">🔒 ' + t + '</span><div class="unlock-bar-wrap"><div class="unlock-bar-fill" style="width:' + pct + '%"></div></div><span class="unlock-count">' + (p.count||0) + '/' + UNLOCK_THRESHOLD + '</span></div>';
+      }).join('')}
+      <p style="font-size:0.75rem;color:var(--text-muted);margin-top:10px;line-height:1.6">
+        💡 Reiche eine Frage ein oder melde einen Fehler – und hilf mit, das nächste Thema freizuschalten!
+      </p>
+    </div>
+
+    ${isAdmin ? '<div class="admin-panel">' +
+      '<div class="admin-title">⚙️ Admin-Panel · BioBattle Dozierende</div>' +
+      '<div style="margin-bottom:14px"><button class="btn-primary" onclick="showDashboard()" style="font-size:0.82rem;padding:8px 16px">📊 Nutzungsstatistik öffnen</button></div>' +
+      TOPIC_ORDER.filter(t => !ALWAYS_UNLOCKED.includes(t)).map(t => {
+        const p = topicProgress[t] || { count: 0, unlocked: false };
+        return '<div class="admin-row">' +
+          '<span class="admin-topic-name">' + (p.unlocked?'✅':'🔒') + ' ' + t + '</span>' +
+          '<div class="admin-count-wrap">' +
+            '<button class="admin-count-btn" onclick="adminChangeCount(' + JSON.stringify(t) + ',-1)">−</button>' +
+            '<span class="admin-count-val">' + (p.count||0) + '</span>' +
+            '<button class="admin-count-btn" onclick="adminChangeCount(' + JSON.stringify(t) + ',1)">+</button>' +
+          '</div>' +
+          '<button class="admin-toggle' + (p.unlocked?' locked':'') + '" onclick="adminToggleLock(' + JSON.stringify(t) + ')">' +
+            (p.unlocked ? '🔒 Sperren' : '🔓 Freischalten') +
+          '</button></div>';
+      }).join('') +
+    '</div>' : ''}
+  `;
+}
+
+function renderNameScreen(next, label) {
+  return `
+    <h2 class="welcome-title">Dein Spielername</h2>
+    <p class="welcome-sub">Wie möchtest du im Duell heißen?</p>
+    <input id="nameInput" class="text-input" type="text" placeholder="z. B. BioAce 🧬"
+      value="${S.playerName}" maxlength="20"
+      onkeydown="if(event.key==='Enter')setName('${next}')"/>
+    <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:14px">
+      🔒 Datenschutz: Es wird nur dein Spielername temporär gespeichert – kein Personenbezug, nicht nachvollziehbar.
+    </p>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="setName('${next}')">${label}</button>
+      <button class="btn-secondary" onclick="go('home')">Zurück</button>
+    </div>
+  `;
+}
+
+function renderCreateSetup() {
+  return `
+    <h2 class="welcome-title">⚔️ Duell erstellen</h2>
+    <p class="welcome-sub">Spieler: <strong style="color:var(--emerald)">${S.playerName}</strong> &middot; Wähle ein Thema:</p>
+    ${topicGrid(S.topic)}
+    <div class="btn-row">
+      <button class="btn-primary" onclick="createRoom()" ${!S.topic?'disabled':''}>Raum erstellen</button>
+      <button class="btn-secondary" onclick="go('home')">Zurück</button>
+    </div>
+  `;
+}
+
+function renderJoinScreen() {
+  return `
+    <h2 class="welcome-title">🎯 Duell beitreten</h2>
+    <p class="welcome-sub">Spieler: <strong style="color:var(--emerald)">${S.playerName}</strong></p>
+    <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:14px">
+      Gib den 4-stelligen Code ein, den du von deinem Gegner erhalten hast:
+    </p>
+    <input id="codeInput" class="code-input" type="text" placeholder="BIO4" maxlength="4"
+      onkeydown="if(event.key==='Enter')joinRoom()" oninput="this.value=this.value.toUpperCase()"/>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="joinRoom()">Beitreten ⚡</button>
+      <button class="btn-secondary" onclick="go('home')">Zurück</button>
+    </div>
+  `;
+}
+
+function renderLobby() {
+  const players = Object.values(S.room?.players||{});
+  const count = players.length;
+  const canStart = S.isHost && count >= 2;
+  return `
+    <div style="text-align:center">
+      <div style="font-size:3rem;margin-bottom:10px">⏳</div>
+      <h2 class="welcome-title">${S.isHost?'Warte auf Gegner…':'Warte auf Start…'}</h2>
+      <div class="room-code-box">
+        <div class="room-code-label">Teile ihn deinem Gegner mit!</div>
+        <div class="room-code">${S.roomCode}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">z. B. per WhatsApp, Signal oder E-Mail</div>
+      </div>
+      <div style="margin-bottom:20px">
+        ${players.map((p,i)=>`<div class="player-row"><span class="dot"></span>${p.name}${i===0?' <span class="badge">Host</span>':''}</div>`).join('')}
+        ${count<2?`<p style="color:var(--text-muted);font-size:0.82rem;margin-top:8px">Warte auf 2. Spieler (${count}/2)…</p>`:''}
+      </div>
+      ${canStart?`<button class="btn-primary" onclick="startGame()">🚀 Spiel starten!</button>`:''}
+      ${!S.isHost&&count>=2?'<p style="color:var(--emerald);font-size:0.88rem">Beide bereit! Warte auf Host…</p>':''}
+      <div style="margin-top:16px"><button class="btn-secondary" onclick="leaveRoom()">Abbrechen</button></div>
+    </div>
+  `;
+}
+
+function renderMultiQuiz() {
+  if (!S.room?.questions) return '<p style="color:var(--text-muted)">Lade…</p>';
+  const q = S.room.questions[S.multiQIdx];
+  const total = S.room.questions.length;
+  const pct = Math.round((S.multiQIdx/total)*100);
+  const isLast = S.multiQIdx >= total-1;
+  const opp = Object.entries(S.room.players||{}).find(([id])=>id!==S.playerId);
+  const oppData = opp?opp[1]:null;
+  return `
+    <div class="live-bar">
+      <div class="live-player">
+        <span class="live-name emerald">⚡ ${S.playerName}</span>
+        <span class="live-score">${S.multiScore}</span>
+      </div>
+      <div class="live-vs">VS</div>
+      <div class="live-player" style="flex-direction:row-reverse">
+        <span class="live-name amber">${oppData?.name||'…'}</span>
+        <span class="live-score">${oppData?.score||0}</span>
+      </div>
+    </div>
+    <div class="quiz-topbar">
+      <div class="topbar-item">
+        <span class="topbar-label">Frage</span>
+        <span class="topbar-value">${S.multiQIdx+1} / ${total}</span>
+      </div>
+      <div class="topbar-item">
+        <span class="topbar-label">Thema</span>
+        <span class="topbar-value">${S.room.topic}</span>
+      </div>
+    </div>
+    ${progressBar(pct)}
+    <div class="question-text">${q.q}</div>
+    <div class="answers">${q.o.map((o,i)=>answerBtn(o,i,S.multiAnswered,q.c)).join('')}</div>
+    ${S.multiAnswered!==null?`
+      <div class="feedback-box${S.multiAnswered===q.c?'':' wrong-fb'}">
+        <div class="feedback-title">${S.multiAnswered===q.c?'✓ Richtig!':'✗ Nicht ganz'}</div>
+        <p class="feedback-text">${q.e}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <button class="btn-primary" onclick="nextMulti()">${isLast?'Ergebnis ansehen':'Nächste Frage'}</button>
+          ${q.author?`<span style="font-size:0.72rem;color:var(--text-muted);opacity:0.7;text-align:right">✍️ ${q.author}</span>`:''}
+        </div>
+      </div>`:''}
+  `;
+}
+
+function renderMultiWaiting() {
+  const opp = Object.entries(S.room?.players||{}).find(([id])=>id!==S.playerId);
+  const oppData = opp?opp[1]:null;
+  return `
+    <div style="text-align:center">
+      <div style="font-size:3rem;margin-bottom:12px">⏳</div>
+      <h2 class="welcome-title">Du bist fertig!</h2>
+      <p class="welcome-sub">Warte auf ${oppData?.name||'deinen Gegner'}…</p>
+      <div style="margin-top:16px;color:var(--emerald);font-size:0.9rem">
+        Dein Score: <strong>${S.multiScore} / ${S.room?.questions?.length||QUESTIONS_PER_ROUND}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function renderMultiResult() {
+  const total = S.room?.questions?.length||QUESTIONS_PER_ROUND;
+  const players = Object.entries(S.room?.players||{});
+  const me = players.find(([id])=>id===S.playerId);
+  const opp = players.find(([id])=>id!==S.playerId);
+  const myScore = me?me[1].score:S.multiScore;
+  const oppData = opp?opp[1]:null;
+  const oppScore = oppData?.score||0;
+  const won = myScore > oppScore, tie = myScore === oppScore;
+  return `
+    <div style="text-align:center">
+      <div style="font-size:3.5rem;margin-bottom:10px">${tie?'🤝':won?'🏆':'😤'}</div>
+      <h2 class="welcome-title">${tie?'Unentschieden!':won?'Du hast gewonnen!':'Knapp daneben!'}</h2>
+      <div class="score-compare">
+        <div class="score-col">
+          <div class="score-label">Du (${S.playerName})</div>
+          <div class="score-big emerald">${myScore}/${total}</div>
+        </div>
+        <div class="score-col">
+          <div class="score-label">${oppData?.name||'Gegner'}</div>
+          <div class="score-big amber">${oppScore}/${total}</div>
+        </div>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0"></div>
+      <div class="btn-row" style="justify-content:center;flex-wrap:wrap">
+        <button class="btn-primary" onclick="detachListener();S.room=null;S.roomCode='';S.topic=null;go('multi-name-create')">Neues Duell ⚔️</button>
+        <button class="btn-secondary" onclick="goHome()">Startmenü</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderLearnSetup() {
+  return `
+    <h2 class="welcome-title">📚 Lernmodus</h2>
+    <p class="welcome-sub">Wähle ein Thema – du bekommst alle Fragen in zufälliger Reihenfolge.</p>
+    ${topicGrid(S.topic)}
+    <div class="btn-row">
+      <button class="btn-primary" onclick="startLearn()" ${!S.topic?'disabled':''}>
+        Alle ${S.topic ? getByTopic(S.topic).length : ''} Fragen starten 📚
+      </button>
+      <button class="btn-secondary" onclick="go('home')">Zurück</button>
+    </div>
+  `;
+}
+
+function renderSoloSetup() {
+  return `
+    <h2 class="welcome-title">Thema wählen</h2>
+    <p class="welcome-sub">10 zufällige Fragen aus dem gewählten Thema.</p>
+    ${topicGrid(S.topic)}
+    <div class="btn-row">
+      <button class="btn-primary" onclick="startSolo()" ${!S.topic?'disabled':''}>Quiz starten 🚀</button>
+      <button class="btn-secondary" onclick="go('home')">Zurück</button>
+    </div>
+  `;
+}
+
+function renderSoloQuiz() {
+  const q = S.quizQs[S.qIdx];
+  const total = S.quizQs.length;
+  const pct = Math.round((S.qIdx/total)*100);
+  const isLast = S.qIdx >= total-1;
+  return `
+    <div class="quiz-topbar">
+      <div class="topbar-item"><span class="topbar-label">Thema</span><span class="topbar-value">${S.topic}</span></div>
+      <div class="topbar-item"><span class="topbar-label">Frage</span><span class="topbar-value">${S.qIdx+1} / ${total}</span></div>
+      <div class="topbar-item"><span class="topbar-label">Punkte</span><span class="topbar-value" style="color:var(--emerald)">${S.score}</span></div>
+    </div>
+    ${progressBar(pct)}
+    <div class="question-text">${q.q}</div>
+    <div class="answers">${q.o.map((o,i)=>answerBtn(o,i,S.answered,q.c)).join('')}</div>
+    ${S.answered!==null?`
+      <div class="feedback-box${S.answered===q.c?'':' wrong-fb'}">
+        <div class="feedback-title">${S.answered===q.c?'✓ Richtig!':'✗ Nicht ganz'}</div>
+        <p class="feedback-text">${q.e}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <button class="btn-primary" onclick="nextSolo()">${isLast?'Ergebnis ansehen':'Nächste Frage'}</button>
+          ${q.author?`<span style="font-size:0.72rem;color:var(--text-muted);opacity:0.7;text-align:right">✍️ ${q.author}</span>`:''}
+        </div>
+      </div>`:''}
+  `;
+}
+
+function renderSoloResult() {
+  const total = S.quizQs.length, pct = Math.round(S.score/total*100);
+  const msg = pct<50?'Ein guter Anfang – eine weitere Runde festigt das Thema.'
+    :pct<70?'Schon solide! Du hast viele Inhalte sicher erfasst.'
+    :pct<90?'Sehr stark. Du kennst dieses Thema wirklich gut.'
+    :pct<100?'Ausgezeichnet – nur noch eine Frage vom Perfektscore!'
+    :'Perfekt. Alle Fragen richtig – beeindruckend!';
+  return `
+    <div style="text-align:center">
+      <div class="result-score">${S.score}<span class="result-total">/${total}</span></div>
+      <div class="result-pct">${pct}% richtig &middot; ${S.topic}</div>
+      <p class="result-msg">${msg}</p>
+      <div style="height:1px;background:rgba(255,255,255,0.07);margin:20px 0"></div>
+      <div class="btn-row" style="justify-content:center;flex-wrap:wrap">
+        <button class="btn-primary" onclick="startSolo()">Nochmal spielen</button>
+        <button class="btn-secondary" onclick="go('solo-setup')">Thema wechseln</button>
+        <button class="btn-secondary" onclick="go('home')">Startmenü</button>
+      </div>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════
+//  📊  ADMIN DASHBOARD
+// ══════════════════════════════════════════════════════════
+var statsData = null;
+var statsLoading = false;
+
+async function loadStats() {
+  if (!sb || !isAdmin || statsLoading) return;
+  statsLoading = true;
+  render();
+  try {
+    var res = await sb.rpc('get_stats', { admin_code: _adminInput });
+    statsData = res.data || [];
+  } catch(e) { statsData = []; }
+  statsLoading = false;
+  render();
+}
+
+window.showDashboard = function() { loadStats(); go('admin-dashboard'); };
+
+function renderDashboard() {
+  if (!isAdmin) return renderHome();
+  if (statsLoading) return '<div class="dash-loading">📊 Lade Statistiken…</div>';
+  if (!statsData || statsData.length === 0) {
+    return '<h2 class="welcome-title">📊 Dashboard</h2>' +
+      '<p class="welcome-sub">Noch keine Nutzungsdaten vorhanden. Statistiken erscheinen, sobald das Quiz genutzt wird.</p>' +
+      '<div class="btn-row"><button class="btn-secondary" onclick="go(\'home\')">← Zurück</button></div>';
+  }
+
+  var totals = { solo_started: 0, learn_started: 0, duel_created: 0, duel_joined: 0 };
+  var topicCounts = {};
+  var dayCounts = {};
+
+  statsData.forEach(function(r) {
+    if (totals[r.event_type] !== undefined) totals[r.event_type] += r.count;
+    if (r.topic && ['solo_started','learn_started','duel_created'].indexOf(r.event_type) >= 0) {
+      topicCounts[r.topic] = (topicCounts[r.topic] || 0) + r.count;
+    }
+    dayCounts[r.day] = (dayCounts[r.day] || 0) + r.count;
+  });
+
+  var totalAll = totals.solo_started + totals.learn_started + totals.duel_created;
+  var uniqueDays = Object.keys(dayCounts).length;
+  var topTopics = Object.entries(topicCounts).sort(function(a,b) { return b[1] - a[1]; });
+  var maxTopicCount = topTopics.length > 0 ? topTopics[0][1] : 1;
+  var recentDays = Object.entries(dayCounts).sort(function(a,b) { return b[0].localeCompare(a[0]); }).slice(0, 14);
+  var maxDayCount = recentDays.length > 0 ? Math.max.apply(null, recentDays.map(function(d) { return d[1]; })) : 1;
+
+  var h = '<h2 class="welcome-title">📊 Nutzungsstatistik</h2>' +
+    '<p class="welcome-sub">Anonyme, aggregierte Daten – kein Personenbezug.</p>' +
+    '<div class="dash-grid">' +
+      '<div class="dash-card"><div class="dash-number">' + totalAll + '</div><div class="dash-label">Spiele gesamt</div></div>' +
+      '<div class="dash-card"><div class="dash-number">' + totals.solo_started + '</div><div class="dash-label">Solo-Quizze</div></div>' +
+      '<div class="dash-card"><div class="dash-number">' + totals.learn_started + '</div><div class="dash-label">Lernmodus</div></div>' +
+      '<div class="dash-card"><div class="dash-number">' + totals.duel_created + '</div><div class="dash-label">Duelle</div></div>' +
+      '<div class="dash-card"><div class="dash-number">' + uniqueDays + '</div><div class="dash-label">Aktive Tage</div></div>' +
+    '</div>';
+
+  h += '<div style="margin-bottom:20px">' +
+    '<div class="admin-title" style="margin-bottom:10px">🏆 Beliebteste Themen</div>' +
+    '<table class="dash-table"><tr><th>Thema</th><th>Spiele</th><th></th></tr>';
+  topTopics.forEach(function(entry) {
+    var w = Math.round(entry[1] / maxTopicCount * 120);
+    h += '<tr><td>' + entry[0] + '</td><td>' + entry[1] + '</td>' +
+      '<td><span class="dash-bar" style="width:' + w + 'px"></span></td></tr>';
+  });
+  h += '</table></div>';
+
+  h += '<div style="margin-bottom:20px">' +
+    '<div class="admin-title" style="margin-bottom:10px">📅 Letzte 14 Tage</div>' +
+    '<table class="dash-table"><tr><th>Datum</th><th>Events</th><th></th></tr>';
+  recentDays.forEach(function(entry) {
+    var label = new Date(entry[0] + 'T00:00:00').toLocaleDateString('de-DE', { weekday:'short', day:'numeric', month:'short' });
+    var w = Math.round(entry[1] / maxDayCount * 120);
+    h += '<tr><td>' + label + '</td><td>' + entry[1] + '</td>' +
+      '<td><span class="dash-bar" style="width:' + w + 'px"></span></td></tr>';
+  });
+  h += '</table></div>';
+
+  h += '<div class="btn-row">' +
+    '<button class="btn-primary" onclick="loadStats()">🔄 Aktualisieren</button>' +
+    '<button class="btn-secondary" onclick="go(\'home\')">← Zurück</button></div>';
+
+  return h;
+}
+
+// ══════════════════════════════════════════════════════════
+//  🌐  GLOBAL ONCLICK HANDLERS
+// ══════════════════════════════════════════════════════════
+window.go = go;
+window.selectTopic = selectTopic;
+window.answerClick = i => { if (S.screen==='solo-quiz') handleSoloAnswer(i); else if (S.screen==='multi-quiz') handleMultiAnswer(i); };
+window.nextSolo = nextSolo;
+window.nextMulti = nextMulti;
+window.startSolo = startSolo;
+window.startLearn = startLearn;
+window.createRoom = createRoom;
+window.joinRoom = joinRoom;
+window.startGame = startGame;
+window.setName = setName;
+window.showFbError = showFbError;
+window.showLockedMsg = showLockedMsg;
+window.leaveRoom = leaveRoom;
+window.goHome = goHome;
+window.S = S;
+
+// ══════════════════════════════════════════════════════════
+//  🖥️  MAIN RENDER
+// ══════════════════════════════════════════════════════════
+function render() {
+  const content = document.getElementById('content');
+  const subtitle = document.getElementById('subtitle');
+  const screens = {
+    'home': renderHome,
+    'solo-setup': renderSoloSetup,
+    'learn-setup': renderLearnSetup,
+    'solo-quiz': renderSoloQuiz,
+    'solo-result': renderSoloResult,
+    'multi-name-create': () => renderNameScreen('multi-create','Weiter →'),
+    'multi-create': renderCreateSetup,
+    'multi-name-join': () => renderNameScreen('multi-join','Weiter →'),
+    'multi-join': renderJoinScreen,
+    'multi-lobby': renderLobby,
+    'multi-quiz': renderMultiQuiz,
+    'multi-waiting': renderMultiWaiting,
+    'multi-result': renderMultiResult,
+    'admin-dashboard': renderDashboard,
+  };
+  if (content) content.innerHTML = (screens[S.screen]||renderHome)();
+  if (subtitle) subtitle.textContent = S.screen.startsWith('multi')
+    ? 'Multiplayer · Duell-Modus ⚔️'
+    : 'Biochemie für Studierende der Humanmedizin, Zahnmedizin und Neurowissenschaften';
+}
+
+loadTopicProgress().then(function() { render(); });
+</script>
+</body>
+</html>
