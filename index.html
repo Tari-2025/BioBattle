@@ -384,13 +384,25 @@ function trackEvent(eventType, topic) {
 // ══════════════════════════════════════════════════════════
 //  ⚙️  ADMIN-FUNKTIONEN (serverseitig abgesichert)
 // ══════════════════════════════════════════════════════════
+// Direkter REST-Aufruf an Supabase (umgeht Tracking Prevention)
+function adminRpc(fnName, params) {
+  fetch(SUPABASE_URL + '/rest/v1/rpc/' + fnName, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY
+    },
+    body: JSON.stringify(params)
+  });
+}
+
 window.adminChangeCount = function(topic, delta) {
   if (!isAdmin) return;
   var p = topicProgress[topic];
   var newCount = Math.max(0, (p.count || 0) + delta);
   var newUnlocked = newCount >= UNLOCK_THRESHOLD ? true : p.unlocked;
-  // Fire and forget – UI wird sofort aktualisiert
-  sb.rpc('admin_update_progress', {
+  adminRpc('admin_update_progress', {
     admin_code: _adminInput, topic_name: topic,
     new_count: newCount, is_unlocked: newUnlocked
   });
@@ -403,7 +415,7 @@ window.adminToggleLock = function(topic) {
   if (!isAdmin) return;
   var p = topicProgress[topic];
   var newUnlocked = !p.unlocked;
-  sb.rpc('admin_update_progress', {
+  adminRpc('admin_update_progress', {
     admin_code: _adminInput, topic_name: topic,
     new_count: p.count || 0, is_unlocked: newUnlocked
   });
