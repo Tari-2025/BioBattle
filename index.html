@@ -384,32 +384,29 @@ function trackEvent(eventType, topic) {
 // ══════════════════════════════════════════════════════════
 //  ⚙️  ADMIN-FUNKTIONEN (serverseitig abgesichert)
 // ══════════════════════════════════════════════════════════
-window.adminChangeCount = async function(topic, delta) {
+window.adminChangeCount = function(topic, delta) {
   if (!isAdmin) return;
   var p = topicProgress[topic];
   var newCount = Math.max(0, (p.count || 0) + delta);
   var newUnlocked = newCount >= UNLOCK_THRESHOLD ? true : p.unlocked;
-  try {
-    await sb.rpc('admin_update_progress', {
-      admin_code: _adminInput, topic_name: topic,
-      new_count: newCount, is_unlocked: newUnlocked
-    });
-  } catch(e) {}
+  // Fire and forget – UI wird sofort aktualisiert
+  sb.rpc('admin_update_progress', {
+    admin_code: _adminInput, topic_name: topic,
+    new_count: newCount, is_unlocked: newUnlocked
+  });
   p.count = newCount;
   p.unlocked = newUnlocked;
   render();
 };
 
-window.adminToggleLock = async function(topic) {
+window.adminToggleLock = function(topic) {
   if (!isAdmin) return;
   var p = topicProgress[topic];
   var newUnlocked = !p.unlocked;
-  try {
-    await sb.rpc('admin_update_progress', {
-      admin_code: _adminInput, topic_name: topic,
-      new_count: p.count || 0, is_unlocked: newUnlocked
-    });
-  } catch(e) {}
+  sb.rpc('admin_update_progress', {
+    admin_code: _adminInput, topic_name: topic,
+    new_count: p.count || 0, is_unlocked: newUnlocked
+  });
   p.unlocked = newUnlocked;
   render();
 };
