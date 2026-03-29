@@ -769,14 +769,15 @@ function renderHome() {
       '<div style="margin-bottom:14px"><button class="btn-primary" onclick="showDashboard()" style="font-size:0.82rem;padding:8px 16px">📊 Nutzungsstatistik öffnen</button></div>' +
       TOPIC_ORDER.filter(t => !ALWAYS_UNLOCKED.includes(t)).map(t => {
         const p = topicProgress[t] || { count: 0, unlocked: false };
+        const safe = t.replace(/'/g, "\\'");
         return '<div class="admin-row">' +
           '<span class="admin-topic-name">' + (p.unlocked?'✅':'🔒') + ' ' + t + '</span>' +
           '<div class="admin-count-wrap">' +
-            '<button class="admin-count-btn" onclick="adminChangeCount(' + JSON.stringify(t) + ',-1)">−</button>' +
+            '<button class="admin-count-btn" onclick="adminChangeCount(\'' + safe + '\',-1)">−</button>' +
             '<span class="admin-count-val">' + (p.count||0) + '</span>' +
-            '<button class="admin-count-btn" onclick="adminChangeCount(' + JSON.stringify(t) + ',1)">+</button>' +
+            '<button class="admin-count-btn" onclick="adminChangeCount(\'' + safe + '\',1)">+</button>' +
           '</div>' +
-          '<button class="admin-toggle' + (p.unlocked?' locked':'') + '" onclick="adminToggleLock(' + JSON.stringify(t) + ')">' +
+          '<button class="admin-toggle' + (p.unlocked?' locked':'') + '" onclick="adminToggleLock(\'' + safe + '\')">' +
             (p.unlocked ? '🔒 Sperren' : '🔓 Freischalten') +
           '</button></div>';
       }).join('') +
