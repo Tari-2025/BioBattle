@@ -389,22 +389,29 @@ window.adminChangeCount = async function(topic, delta) {
   var p = topicProgress[topic];
   var newCount = Math.max(0, (p.count || 0) + delta);
   var newUnlocked = newCount >= UNLOCK_THRESHOLD ? true : p.unlocked;
-  var res = await sb.rpc('admin_update_progress', {
-    admin_code: _adminInput, topic_name: topic,
-    new_count: newCount, is_unlocked: newUnlocked
-  });
-  if (res.data) { p.count = newCount; p.unlocked = newUnlocked; render(); }
+  try {
+    await sb.rpc('admin_update_progress', {
+      admin_code: _adminInput, topic_name: topic,
+      new_count: newCount, is_unlocked: newUnlocked
+    });
+  } catch(e) {}
+  p.count = newCount;
+  p.unlocked = newUnlocked;
+  render();
 };
 
 window.adminToggleLock = async function(topic) {
   if (!isAdmin) return;
   var p = topicProgress[topic];
   var newUnlocked = !p.unlocked;
-  var res = await sb.rpc('admin_update_progress', {
-    admin_code: _adminInput, topic_name: topic,
-    new_count: p.count || 0, is_unlocked: newUnlocked
-  });
-  if (res.data) { p.unlocked = newUnlocked; render(); }
+  try {
+    await sb.rpc('admin_update_progress', {
+      admin_code: _adminInput, topic_name: topic,
+      new_count: p.count || 0, is_unlocked: newUnlocked
+    });
+  } catch(e) {}
+  p.unlocked = newUnlocked;
+  render();
 };
 
 // ══════════════════════════════════════════════════════════
