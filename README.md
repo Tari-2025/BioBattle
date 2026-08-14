@@ -1,5 +1,13 @@
 # 🧬 BioBattle – Interaktives Biochemie-Quiz
 
+Dieses Repository enthält einen frühen Entwicklungsstand.
+
+**Die aktuelle Version liegt auf Git.nrw:**
+[BioBattle Repository](https://gitlab.git.nrw/triyahi1/biobattle)
+
+**Ausprobieren und Materialien:**
+[BioBattle auf EduLabs](https://www.edulabs.uni-koeln.de/ilias.php?baseClass=ilrepositorygui&ref_id=36492)
+
 **BioBattle** ist ein webbasiertes Quiz-Spiel für Studierende der Humanmedizin, Zahnmedizin und Neurowissenschaften an der Universität zu Köln. Es bietet Solo-, Lern- und Multiplayer-Modi mit 335 Fragen aus 11 biochemischen Themengebieten.
 
 ## Features
